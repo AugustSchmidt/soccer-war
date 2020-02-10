@@ -2,6 +2,7 @@ import re
 import queue
 import sys
 import string
+import os
 
 import csv
 import json
@@ -152,7 +153,7 @@ def is_url_okay_to_follow(url, limiting_domain):
         print("Failed 6")
         return False
 
-    if not (limiting_domain == loc or (trunc_loc == "." + limiting_domain)):
+    if not (limiting_domain in loc+parsed_url.path):
         print("Failed 7")
         return False
 
