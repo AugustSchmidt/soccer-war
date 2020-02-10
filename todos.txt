@@ -1,0 +1,56 @@
+~~~Web Scraper~~~
+Websites:
+
+https://www.premierleague.com/stats
+* Official stats, so they're as accurate as we can hope to get
+* Stats to the 2006/2007 season
+
+* GENERAL STATS
+** Goals
+** Assists
+** Appearances
+** Minutes Played
+** Yellow Cards
+** Red Cards
+** Substituted On
+** Substituted Off
+
+* ATTACK
+** Shots
+** Shots on target
+** Hit woodwork
+** Goals from header
+** Goals from penalty
+** Goals from freekick
+** Offsides
+** Touches
+** Passes
+** Through balls
+** Crosses
+** Corners taken
+
+* DEFENSE
+** Blocks
+** Interceptions
+** Tackles
+** Last man tackles
+** Clearances
+** Headed clearances
+** Aerial battles won
+** Own goals
+** Errors leading to goal
+** Penalties conceded
+** Fouls
+** Aerial battles lost
+
+* GOALKEEPING
+** Goalkeeper
+** Clean Sheets
+** Goals Conceded
+** Saves
+** Penalties Saved
+** Punches
+** High Claims
+** Sweeper Clearances
+** Throw Outs
+** Goal Kicks
