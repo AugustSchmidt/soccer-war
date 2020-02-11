@@ -130,31 +130,24 @@ def is_url_okay_to_follow(url, limiting_domain):
     trunc_loc = loc[-(ld+1):]
 
     if url == None:
-        print("Failed 1")
         return False
 
     if 'mailto:' in url or '@' in url:
-        print("Failed 2")
         return False
 
     if parsed_url.scheme != 'http' and parsed_url.scheme != 'https':
-        print("Failed 3")
         return False
 
     if loc == '':
-        print("Failed 4")
         return False
 
     if parsed_url.fragment != '':
-        print("Failed 5")
         return False
 
     if parsed_url.query != '':
-        print("Failed 6")
         return False
 
     if not (limiting_domain in loc+parsed_url.path):
-        print("Failed 7")
         return False
 
     (filename, ext) = os.path.splitext(parsed_url.path)
@@ -199,18 +192,17 @@ def queue_links(soup, starting_url, limiting_domain, link_q):
     '''
 
     links = soup.find_all('a', href = True)
-    print(links)
 
     for link in links:
         href = link.get('href')
         no_frag = remove_fragment(href)
         clean_link = convert_if_relative_url(starting_url, no_frag)
-        print(clean_link)
 
         if is_absolute_url(clean_link):
             if is_url_okay_to_follow(clean_link, limiting_domain):
-                if clean_link not in link_q.queue:
-                    link_q.put(clean_link)
+                if clean_link != starting_url:
+                    if clean_link not in link_q.queue:
+                        link_q.put(clean_link)
 
     return link_q
 
@@ -232,7 +224,7 @@ def go_fbref(num_pages_to_crawl):
         A dictionary of Pandas dataframes
     '''
 
-    starting_url = 'https://fbref.com/en/comps/9/stats/Premier-League-Stats'
+    starting_url = 'https://fbref.com/en/comps/9/history/Premier-League-Seasons'
     limiting_domain = 'fbref.com/en/comps/9/'
 
     link_q = queue.Queue()
