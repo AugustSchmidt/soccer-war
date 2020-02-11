@@ -252,22 +252,23 @@ def go_fbref():
             pages_crawled.append(year_page)
             year_soup = get_soup(year_page)
             link_q = queue_links(year_soup, year_page, okay_url_fbref, link_q)
-            get_tables(year_pagem squad_standard_stats, player_standard_stats)
+            get_tables(year_soup, squad_standard_stats, player_standard_stats)
 
     return squad_standard_stats, player_standard_stats
 
-def get_tables(page, squad_standard_stats, player_standard_stats):
+def get_tables(soup, squad_standard_stats, player_standard_stats):
     '''
     Takes a https://fbref.com/en/comps/9/####/stats/ page and updates the
     squad_standard_stats and the player_standard_stats dictionaries using the
     tables from the page.
 
     Inputs:
-        page (str): url for a fbref.com yearly stats page
+        soup (bs4): BeautifulSoup for a fbref.com yearly stats page
         squad_standard_stats (dict): dictionary mapping squads to yearly stats
         player_standard_stats (dict): dictionary mapping players to yearly stats
 
     Returns:
         Updated squad_standard_stats and player_standard_stats dictionaries
     '''
-    
+    tables = soup.find_all('div', class_ = "table_outer_container")
+    print(tables)
