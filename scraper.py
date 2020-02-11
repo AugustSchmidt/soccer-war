@@ -110,13 +110,68 @@ def convert_if_relative_url(current_url, new_url):
     else:
         return urllib.parse.urljoin(current_url, new_url)
 
-def is_url_okay_to_follow(url, limiting_domain):
+def get_soup(url):
     '''
-    Checks if a url is within the limiting_domain of the crawler
+    Takes a url string and returns a bs4 object
+
+    Inputs:
+        url (str): a url
+
+    Returns:
+        A BeautifulSoup object
+    '''
+
+    request = get_request(url)
+
+    if request != None:
+        text = read_request(request)
+        return bs4.BeautifulSoup(text, 'html.parser')
+    else:
+        print('The request failed')
+
+
+def queue_links(soup, starting_url, is_okay, link_q):
+    '''
+    Given a bs4 object, pull out all the links that need to be crawled
+
+    Inputs:
+        soup (bs4): a bs4 objec tat all link tags (a) can be pulled from
+        starting_url (str): the initial url that created the soup object
+        is_okay (function): a helper function for the website we're crawling
+        link_q (Queue): the current queue of links to crawl
+
+    Returns:
+        Updated link_q with all link tags that need to be crawled
+    '''
+
+    links = soup.find_all('a', href = True)
+
+    for link in links:
+        href = link.get('href')
+        no_frag = remove_fragment(href)
+        clean_link = convert_if_relative_url(starting_url, no_frag)
+
+        if is_absolute_url(clean_link):
+            if is_okay(clean_link):
+                if clean_link != starting_url:
+                    if clean_link not in link_q.queue:
+                        link_q.put(clean_link)
+
+    print(link_q.queue)
+    return link_q
+
+###############################################################################
+                    # SPECIFIC CRAWLERS FOR SITES #
+###############################################################################
+
+#################################fbref.com#####################################
+
+def okay_url_fbref(url):
+    '''
+    Checks if a url is within the limiting_domain of the fbref crawler
 
     Inputs:
         url (str): an absolute url
-        limiting_domain (str): a domain name to stay within
 
     Returns:
         True if the protocol for the url is http(s), the domain is in the
@@ -124,6 +179,9 @@ def is_url_okay_to_follow(url, limiting_domain):
             has no extension or ends in .html.
         False otherwise or if the url includes a '@'
     '''
+
+    limiting_domain = 'fbref.com/en/comps/9/'
+
     parsed_url = urllib.parse.urlparse(url)
     loc = parsed_url.netloc
     ld = len(limiting_domain)
@@ -150,67 +208,14 @@ def is_url_okay_to_follow(url, limiting_domain):
     if not (limiting_domain in loc+parsed_url.path):
         return False
 
+    if not '/stats/' in parsed_url.path:
+        return False
+
     (filename, ext) = os.path.splitext(parsed_url.path)
-    print((filename, ext))
 
     return (ext == '' or ext == '.html')
 
-
-
-def get_soup(url):
-    '''
-    Takes a url string and returns a bs4 object
-
-    Inputs:
-        url (str): a url
-
-    Returns:
-        A BeautifulSoup object
-    '''
-
-    request = get_request(url)
-
-    if request != None:
-        text = read_request(request)
-        return bs4.BeautifulSoup(text, 'html.parser')
-    else:
-        print('The request failed')
-
-
-def queue_links(soup, starting_url, limiting_domain, link_q):
-    '''
-    Given a bs4 object, pull out all the links that need to be crawled
-
-    Inputs:
-        soup (bs4): a bs4 objec tat all link tags (a) can be pulled from
-        starting_url (str): the initial url that created the soup object
-        limiting_domain (str): the domain to stay within when queuing
-        link_q (Queue): the current queue of links to crawl
-
-    Returns:
-        Updated link_q with all link tags that need to be crawled
-    '''
-
-    links = soup.find_all('a', href = True)
-
-    for link in links:
-        href = link.get('href')
-        no_frag = remove_fragment(href)
-        clean_link = convert_if_relative_url(starting_url, no_frag)
-
-        if is_absolute_url(clean_link):
-            if is_url_okay_to_follow(clean_link, limiting_domain):
-                if clean_link != starting_url:
-                    if clean_link not in link_q.queue:
-                        link_q.put(clean_link)
-
-    return link_q
-
-###############################################################################
-                    # SPECIFIC CRAWLERS FOR SITES #
-###############################################################################
-
-def go_fbref(num_pages_to_crawl):
+def go_fbref():
     '''
     Crawl https://fbref.com and generate a two pandas dataframe objects for each
     year of statistics for the Premier League:
@@ -218,18 +223,51 @@ def go_fbref(num_pages_to_crawl):
     2. player_standard_stats
 
     Inputs:
-        num_pages_to_crawl: the number of pages to process during the crawl
+        None
 
     Outputs:
         A dictionary of Pandas dataframes
     '''
 
-    starting_url = 'https://fbref.com/en/comps/9/history/Premier-League-Seasons'
-    limiting_domain = 'fbref.com/en/comps/9/'
+    starting_url = 'https://fbref.com/en/comps/9/stats/Premier-League-Stats'
 
     link_q = queue.Queue()
+    squad_standard_stats = {}
+    player_standard_stats = {}
 
+    pages_crawled = [starting_url]
     soup = get_soup(starting_url)
-    print(soup)
-    link_q = queue_links(soup, starting_url, limiting_domain, link_q)
-    print(link_q.queue)
+    link_q = queue_links(soup, starting_url, okay_url_fbref, link_q)
+
+    get_tables(starting_url, squad_standard_stats, player_standard_stats)
+
+    while not link_q.empty():
+        year_page = link_q.get()
+
+        request = get_request(year_page)
+        if request != None:
+            year_page = get_request_url(request)
+
+        if year_page not in pages_crawled:
+            pages_crawled.append(year_page)
+            year_soup = get_soup(year_page)
+            link_q = queue_links(year_soup, year_page, okay_url_fbref, link_q)
+            get_tables(year_pagem squad_standard_stats, player_standard_stats)
+
+    return squad_standard_stats, player_standard_stats
+
+def get_tables(page, squad_standard_stats, player_standard_stats):
+    '''
+    Takes a https://fbref.com/en/comps/9/####/stats/ page and updates the
+    squad_standard_stats and the player_standard_stats dictionaries using the
+    tables from the page.
+
+    Inputs:
+        page (str): url for a fbref.com yearly stats page
+        squad_standard_stats (dict): dictionary mapping squads to yearly stats
+        player_standard_stats (dict): dictionary mapping players to yearly stats
+
+    Returns:
+        Updated squad_standard_stats and player_standard_stats dictionaries
+    '''
+    
