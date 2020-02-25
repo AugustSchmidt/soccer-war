@@ -13,6 +13,8 @@ import urllib.parse
 
 import pandas as pd
 
+from sqlalchemy import create_engine
+
 ###############################################################################
                     # GENERAL PURPOSE WEB SCRAPING FUNCTIONS #
 ###############################################################################
@@ -272,7 +274,7 @@ def get_tables(soup, squad_standard_stats, player_standard_stats):
     '''
     tables = soup.find_all('div', class_ = "table_outer_container")
     print(tables)
-    
+
      # get players data in commented out table
     players = soup.find_all(text = lambda text: isinstance(text, Comment))
     # commented fbref table is the 11th in the list of comments
@@ -284,13 +286,14 @@ def get_tables(soup, squad_standard_stats, player_standard_stats):
     for col in col_tags:
         columns.append(col.get_text())
     columns = columns[1:]
+    
     # rename columns
     columns[23] = 'xG_per_game'
     columns[24] = 'xA_per_game'
     columns[25] = 'xG+xA_per_game'
     columns[26] = 'npxG_per_game'
     columns[27] = 'npxG+xA_per_game'
-    
+
     # get year that data is from on FBref
     year = soup.find('li', class_='full').get_text()[:9]
     data = []
@@ -300,6 +303,7 @@ def get_tables(soup, squad_standard_stats, player_standard_stats):
         data.append(row)
     player_data = pd.DataFrame(data, columns = columns)
     player_data = player_data.dropna()
+
     # drop matches column beacuse it is just a link to matches played
     player_data = player_data.drop(columns = 'Matches')
     player_data.to_csv('player_data', sep='|')
