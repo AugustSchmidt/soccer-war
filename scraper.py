@@ -13,8 +13,7 @@ import requests
 import urllib.parse
 
 import pandas as pd
-
-from sqlalchemy import create_engine
+import sqlite3
 
 ###############################################################################
                     # GENERAL PURPOSE WEB SCRAPING FUNCTIONS #
@@ -163,6 +162,27 @@ def queue_links(soup, starting_url, is_okay, link_q):
     print(link_q.queue)
     return link_q
 
+def to_sql(df, name, db):
+    '''
+    Converts a pandas DataFrame to an SQLite table and adds it to a database
+
+    Inputs:
+        df (DataFrame): a pandas DataFrame created by a get_tables function
+        title (str): the name of the SQL table we're creating
+        db (database): a SQL database
+
+    Returns:
+        Updated database with new table included
+    '''
+
+    connection = sqlite3.connect(db)
+    cursor = connection.cursor()
+
+    df.to_sql(name, connection, if_exists = "replace")
+    print('Wrote ', name, 'to the database')
+    cursor.close()
+    connection.close()
+
 ###############################################################################
                     # SPECIFIC CRAWLERS FOR SITES #
 ###############################################################################
@@ -218,6 +238,62 @@ def okay_url_fbref(url):
 
     return (ext == '' or ext == '.html')
 
+def get_tables_fbref(soup, db='players.db'):
+    '''
+    Takes a https://fbref.com/en/comps/9/####/stats/ page and updates the
+    players.db sqlite3 database using the tables from the page.
+
+    Inputs:
+        soup (bs4): BeautifulSoup for a fbref.com yearly stats page
+        db (database): sqlite3 database
+
+    Returns:
+        Updated players.db
+    '''
+    tables = soup.find_all('div', class_ = "table_outer_container")
+
+     # get players data in commented out table
+    players = soup.find_all(text = lambda text: isinstance(text, Comment))
+
+    # commented fbref table is the 11th in the list of comments
+    plays = bs4.BeautifulSoup(players[11], 'html.parser').find('tbody')
+    table_rows = plays.find_all('tr')
+
+    col_tags = bs4.BeautifulSoup(players[11], 'html.parser').find_all('th', scope = 'col')
+    columns = []
+    for col in col_tags:
+        columns.append(col.get_text())
+    columns = columns[1:]
+    print('columns:', columns)
+
+    # rename columns
+    columns[15] = 'Gls_per_game'
+    columns[16] = 'Ast_per_game'
+    if len(columns) >= 23:
+        columns[23] = 'xG_per_game'
+        columns[24] = 'xA_per_game'
+        columns[25] = 'xG+xA_per_game'
+        columns[26] = 'npxG_per_game'
+        columns[27] = 'npxG+xA_per_game'
+
+    # get year that data is from on FBref
+    year = soup.find('li', class_='full').get_text()[:9]
+    data = []
+    for tr in table_rows:
+        td = tr.find_all('td')
+        row = [tr.text for tr in td]
+        data.append(row)
+    player_data = pd.DataFrame(data, columns = columns)
+    player_data = player_data.dropna()
+
+    # drop matches column beacuse it is just a link to matches played
+    if 'Matches' in player_data.columns:
+        player_data = player_data.drop(columns = 'Matches')
+    to_sql(player_data, year, db)
+
+    csv_title = 'player_data:' + year
+    player_data.to_csv(csv_title, sep='|')
+
 def go_fbref():
     '''
     Crawl https://fbref.com and generate a two pandas dataframe objects for each
@@ -235,14 +311,13 @@ def go_fbref():
     starting_url = 'https://fbref.com/en/comps/9/stats/Premier-League-Stats'
 
     link_q = queue.Queue()
-    squad_standard_stats = {}
     player_standard_stats = {}
 
     pages_crawled = [starting_url]
     soup = get_soup(starting_url)
     link_q = queue_links(soup, starting_url, okay_url_fbref, link_q)
 
-    get_tables(starting_url, squad_standard_stats, player_standard_stats)
+    get_tables_fbref(soup)
 
     while not link_q.empty():
         year_page = link_q.get()
@@ -255,56 +330,6 @@ def go_fbref():
             pages_crawled.append(year_page)
             year_soup = get_soup(year_page)
             link_q = queue_links(year_soup, year_page, okay_url_fbref, link_q)
-            get_tables(year_soup, squad_standard_stats, player_standard_stats)
+            get_tables_fbref(year_soup)
 
-    return squad_standard_stats, player_standard_stats
-
-def get_tables(soup, squad_standard_stats, player_standard_stats):
-    '''
-    Takes a https://fbref.com/en/comps/9/####/stats/ page and updates the
-    squad_standard_stats and the player_standard_stats dictionaries using the
-    tables from the page.
-
-    Inputs:
-        soup (bs4): BeautifulSoup for a fbref.com yearly stats page
-        squad_standard_stats (dict): dictionary mapping squads to yearly stats
-        player_standard_stats (dict): dictionary mapping players to yearly stats
-
-    Returns:
-        Updated squad_standard_stats and player_standard_stats dictionaries
-    '''
-    tables = soup.find_all('div', class_ = "table_outer_container")
-    print(tables)
-
-     # get players data in commented out table
-    players = soup.find_all(text = lambda text: isinstance(text, Comment))
-    # commented fbref table is the 11th in the list of comments
-    plays = bs4.BeautifulSoup(players[11], 'html5lib').find('tbody')
-    table_rows = plays.find_all('tr')
-
-    col_tags = bs4.BeautifulSoup(players[11], 'html5lib').find_all('th', scope = 'col')
-    columns = []
-    for col in col_tags:
-        columns.append(col.get_text())
-    columns = columns[1:]
-    
-    # rename columns
-    columns[23] = 'xG_per_game'
-    columns[24] = 'xA_per_game'
-    columns[25] = 'xG+xA_per_game'
-    columns[26] = 'npxG_per_game'
-    columns[27] = 'npxG+xA_per_game'
-
-    # get year that data is from on FBref
-    year = soup.find('li', class_='full').get_text()[:9]
-    data = []
-    for tr in table_rows:
-        td = tr.find_all('td')
-        row = [tr.text for tr in td]
-        data.append(row)
-    player_data = pd.DataFrame(data, columns = columns)
-    player_data = player_data.dropna()
-
-    # drop matches column beacuse it is just a link to matches played
-    player_data = player_data.drop(columns = 'Matches')
-    player_data.to_csv('player_data', sep='|')
+    return player_standard_stats

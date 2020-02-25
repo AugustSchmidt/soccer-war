@@ -1,7 +1,3 @@
-~~~Web Scraper~~~
+~~~Cleaning Database~~~
 
-1. Need to adapt is_url_okay_to_follow to work for more specific file path paths
-* Currently function is only capable of high level domains limits for crawling
-** Wrote code to fix this issue, but now need to debug
-2. Need to add a list of all visited sites and check against list when queuing
-* Right now, we can crawl around in infinite cycles until page limit hits
+~~~Creating WAR Metric~~~
