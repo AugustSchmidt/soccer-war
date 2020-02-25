@@ -8,6 +8,7 @@ import csv
 import json
 
 import bs4
+from bs4 import Comment
 import requests
 import urllib.parse
 
