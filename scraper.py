@@ -159,7 +159,6 @@ def queue_links(soup, starting_url, is_okay, link_q):
                     if clean_link not in link_q.queue:
                         link_q.put(clean_link)
 
-    print(link_q.queue)
     return link_q
 
 def to_sql(df, name, db):
@@ -264,7 +263,6 @@ def get_tables_fbref(soup, db='players.db'):
     for col in col_tags:
         columns.append(col.get_text())
     columns = columns[1:]
-    print('columns:', columns)
 
     # rename columns
     columns[15] = 'Gls_per_game'
@@ -289,29 +287,38 @@ def get_tables_fbref(soup, db='players.db'):
     # drop matches column beacuse it is just a link to matches played
     if 'Matches' in player_data.columns:
         player_data = player_data.drop(columns = 'Matches')
+
+    # clean and parse position column
+    player_data = player_data.rename(columns={'Pos': 'Pos_1'})
+    player_data.insert(3, 'Pos_2', None)
+    player_data[['Pos_1', 'Pos_2']] = player_data.Pos_1.str.split(',', expand=True)
+
+    # clean nation column
+    player_data['Nation'] = player_data['Nation'].str.strip().str[-3:]
+
+    print('The new cleaned columns are: ', player_data.columns)
+
     to_sql(player_data, year, db)
 
     csv_title = 'player_data:' + year
     player_data.to_csv(csv_title, sep='|')
 
+    return player_data
+
 def go_fbref():
     '''
-    Crawl https://fbref.com and generate a two pandas dataframe objects for each
-    year of statistics for the Premier League:
-    1. squad_standard_stats
-    2. player_standard_stats
+    Crawl https://fbref.com and update the players.db
 
     Inputs:
         None
 
     Outputs:
-        A dictionary of Pandas dataframes
+        None
     '''
 
     starting_url = 'https://fbref.com/en/comps/9/stats/Premier-League-Stats'
 
     link_q = queue.Queue()
-    player_standard_stats = {}
 
     pages_crawled = [starting_url]
     soup = get_soup(starting_url)
@@ -331,5 +338,3 @@ def go_fbref():
             year_soup = get_soup(year_page)
             link_q = queue_links(year_soup, year_page, okay_url_fbref, link_q)
             get_tables_fbref(year_soup)
-
-    return player_standard_stats
