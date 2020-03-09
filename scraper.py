@@ -296,12 +296,19 @@ def get_tables_fbref(soup, db='players.db'):
     # clean nation column
     player_data['Nation'] = player_data['Nation'].str.strip().str[-3:]
 
-    print('The new cleaned columns are: ', player_data.columns)
-
+    # write all of the year tables to the database
     to_sql(player_data, year, db)
 
-    csv_title = 'player_data:' + year
-    player_data.to_csv(csv_title, sep='|')
+    # we now generate 4 additional tables for each year that contain players
+    # from each of the major positions
+
+    positions = ['DF', 'FW', 'GK', 'MF']
+    for pos in positions:
+        pos_1 = player_data.loc[player_data['Pos_1']==pos]
+        pos_2 = player_data.loc[player_data['Pos_1']==pos]
+        all_pos = pd.concat([pos_1, pos_2])
+        title = year + '-' + pos
+        to_sql(all_pos, title, db)
 
     return player_data
 
