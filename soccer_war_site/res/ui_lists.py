@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import sqlite3
 import csv
 import os
@@ -70,6 +69,3 @@ def generate_lists():
 
     ages_df = pd.DataFrame(ages)
     ages_df.to_csv('age_list.csv', index = False)
-=======
-
->>>>>>> master
