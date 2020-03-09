@@ -25,7 +25,8 @@ def create_connection():
     player_data_db = sqlite3.connect(DATABASE_FILENAME)
     # create a cursor object so that we can manipulate the db
     db_cursor = player_data_db.cursor()
-    return db_cursor
+    return db_cursor 
+
 
 def convert_fields(db_cursor):
     '''
@@ -36,5 +37,7 @@ def convert_fields(db_cursor):
             arg = 'SELECT ' + 'CAST(' + field + ' as VARCHAR(100))' + ' FROM ' + table + ';'
             db_cursor.execute(arg)
 
-def find_players(args)
+def find_players(args):
+    print(type(('headers', [])))
+    return ('headers', [])
     
