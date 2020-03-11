@@ -33,6 +33,8 @@ def _valid_result(res):
           isinstance(res[RESULTS], (tuple, list)))
     if not ok:
         return False
+    else:
+        return True
 
 
 def load_column(filename, col=0):
@@ -52,6 +54,16 @@ def build_dropdown(options):
 
 SQUADS = build_dropdown(load_res_column('squad_list.csv'))
 POSITIONS = build_dropdown(load_res_column('pos_list.csv'))
+POSITIONS.insert(0, ('All', 'All'))
+year = 1992
+tables = []
+while year <= 2019:
+    s = str(year) + '-' + str(year + 1)
+    tables.append(s)
+    year += 1
+tables.insert(0, 'All')
+SEASONS = build_dropdown(tables)
+
 
 class IntegerRange(forms.MultiValueField):
     def __init__(self, *args, **kwargs):
@@ -71,19 +83,23 @@ class value_range(IntegerRange):
     def compress(self, data_list):
         super(value_range, self).compress(data_list)
         for v in data_list:
-            if not 1 <= v <= 100:
+            if not 0 <= v <= 100:
                 raise forms.ValidationError(
-                    'Enrollment bounds must be in the range 1 to 100.')
+                    'Integer bounds must be in the range 0 to 100.')
         if data_list and (data_list[1] < data_list[0]):
             raise forms.ValidationError(
                 'Lower bound must not exceed upper bound.')
         return data_list
 
 class SearchForm(forms.Form):
+    options = ['None', 'Season', 'Age', 'Goals', 'Position', 'Squad']
+    FIELDS = build_dropdown(options)
+
     query = forms.CharField(
         label='Player',
         help_text='e.g. Harry Kane',
         required=False)
+    season = forms.ChoiceField(label='Season', choices = SEASONS, required = False)
     age = value_range(
         label='Age',
         help_text='e.g. 20 and 26',
@@ -105,7 +121,8 @@ class SearchForm(forms.Form):
     squads = forms.MultipleChoiceField(label='Teams',
                                      choices=SQUADS,
                                      widget=forms.CheckboxSelectMultiple,
-                                     required=False) 
+                                     required=False)
+    order = forms.ChoiceField(label='Sort By', choices=FIELDS, required=False)
     show_args = forms.BooleanField(label='Show args_to_ui',
                                    required=False)
 
@@ -121,6 +138,9 @@ def home(request):
             args = {}
             if form.cleaned_data['query']:
                 args['Player'] = form.cleaned_data['query']
+            season = form.cleaned_data['season']
+            if season:
+                args['season'] = season
             age = form.cleaned_data['age']
             if age:
                 args['age_lower'] = age[0]
@@ -131,16 +151,17 @@ def home(request):
                 args['gls_upper'] = gls[1]
             positions = form.cleaned_data['position']
             if positions:
-                args['positions'] = positions
+                args['Pos'] = positions
             squads = form.cleaned_data['squads']
             if squads:
-                args['squads'] = squads
+                args['Squad'] = squads
+            order = form.cleaned_data['order']
+            if order:
+                args['order_by'] = order
             if form.cleaned_data['show_args']:
                 context['args'] = 'args_to_ui = ' + json.dumps(args, indent=2)
             try:
-                print('args:', args)
                 res = find_players(args)
-                print('res:', res)
             except Exception as e:
                 print('Exception caught')
                 bt = traceback.format_exception(*sys.exc_info()[:3])

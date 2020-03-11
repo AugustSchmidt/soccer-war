@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from django.db import models
 
 class players(models.Model):
@@ -16,8 +15,3 @@ def __str__(self):
     return self.player
 
 
-=======
-from django.db import models
-
-# Create your models here.
->>>>>>> master

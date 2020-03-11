@@ -6,9 +6,10 @@ import pandas as pd
 def generate_lists():
 
     # Use this filename for the database
-    DATA_DIR = os.path.dirname(__file__)
-    DATABASE_FILENAME = os.path.join(DATA_DIR, 'player_data.db')
-    connection = sqlite3.connect(DATABASE_FILENAME)
+    # DATA_DIR = os.path.dirname(__file__)
+    # DATABASE_FILENAME = os.path.join(DATA_DIR, 'player_data.db')
+    # connection = sqlite3.connect(DATABASE_FILENAME)
+    connection = sqlite3.connect('../player_data.db')
     c = connection.cursor()
 
     # get all table names
@@ -26,7 +27,7 @@ def generate_lists():
     for table in tables:
         # get lists of unique values from sql database
         squad.append(c.execute('''SELECT DISTINCT Squad FROM ''' + '"' + table + '"').fetchall())
-        pos.append(c.execute('''SELECT DISTINCT Pos FROM ''' + '"' + table + '"').fetchall())
+        pos.append(c.execute('''SELECT DISTINCT Pos_1 FROM ''' + '"' + table + '"').fetchall())
         age.append(c.execute('''SELECT DISTINCT Age FROM ''' + '"' + table + '"').fetchall())
 
     connection.close()
@@ -62,10 +63,10 @@ def generate_lists():
 
     # write lists of unique values to file
     squad_df = pd.DataFrame(squads)
-    squad_df.to_csv('squad_list.csv', index = False)
+    squad_df.to_csv('squad_list.csv', index = False, header = False)
 
     pos_df = pd.DataFrame(positions)
-    pos_df.to_csv('pos_list.csv', index = False)
+    pos_df.to_csv('pos_list.csv', index = False, header = False)
 
     ages_df = pd.DataFrame(ages)
-    ages_df.to_csv('age_list.csv', index = False)
+    ages_df.to_csv('age_list.csv', index = False, header = False)
