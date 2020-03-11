@@ -237,15 +237,16 @@ def okay_url_fbref(url, sub='main'):
             return False
 
     if sub == 'keep_adv':
-        if not '/keepers' in parsed_url.path:
+        if not '/keepersadv' in parsed_url.path:
             return False
 
         adv_years = ['2018-2019', '2017-2018']
-        good_year = True
+        good_year = False
 
         for year in adv_years:
-            if not year in parsed_url.path:
-                good_year = False
+            if year in parsed_url.path:
+                good_year = True
+                break
 
         if good_year == False:
             return False
@@ -382,19 +383,20 @@ def get_keeper_adv_tables(soup, db='players.db'):
         td = tr.find_all('td')
         row = [tr.text for tr in td]
         data.append(row)
-    player_data = pd.DataFrame(data, columns = columns)
-    player_data = player_data.dropna()
+    keeper_data = pd.DataFrame(data, columns = columns)
+    keeper_data = keeper_data.dropna()
 
     # drop matches column beacuse it is just a link to matches played
-    if 'Matches' in player_data.columns:
-        player_data = player_data.drop(columns = 'Matches')
+    if 'Matches' in keeper_data.columns:
+        keeper_data = keeper_data.drop(columns = 'Matches')
 
     # clean nation column
-    keeper_data['Nation'] = player_data['Nation'].str.strip().str[-3:]
+    keeper_data['Nation'] = keeper_data['Nation'].str.strip().str[-3:]
     print(keeper_data)
+    name = year+'-GK'
 
     # write the main year table to the database
-    to_sql(player_data, year, db)
+    to_sql(keeper_data, name, db)
 
 def crawl(link_q, sub, get_tables, pages_crawled):
     '''
@@ -420,6 +422,7 @@ def crawl(link_q, sub, get_tables, pages_crawled):
             pages_crawled.append(year_page)
             year_soup = get_soup(year_page)
             link_q = queue_links(year_soup, year_page, okay_url_fbref, link_q, sub)
+            print(link_q.queue)
             get_tables(year_soup)
 
 def go_fbref():
@@ -436,8 +439,8 @@ def go_fbref():
     starting_url = 'https://fbref.com/en/comps/9/stats/Premier-League-Stats'
     link_q = queue.Queue()
     soup = get_soup(starting_url)
-
     pages_crawled = [starting_url]
+
     link_q = queue_links(soup, starting_url, okay_url_fbref, link_q)
 
     get_tables_fbref(soup)
@@ -445,9 +448,12 @@ def go_fbref():
 
     # get advanced keepers data tables
     starting_url = 'https://fbref.com/en/comps/9/keepersadv/Premier-League-Stats'
+    pages_crawled = [starting_url]
     soup = get_soup(starting_url)
-    link_q = queue_links(soup, starting_url, okay_url_fbref, 'keep_adv')
+    link_q = queue.Queue()
+    link_q = queue_links(soup, starting_url, okay_url_fbref, link_q, 'keep_adv')
+
     print(link_q.queue)
 
-    get_keeper_tables(soup)
-    crawl(link_q, 'keep_adv', get_tables_fbref, pages_crawled)
+    get_keeper_adv_tables(soup)
+    crawl(link_q, 'keep_adv', get_keeper_adv_tables, pages_crawled)
