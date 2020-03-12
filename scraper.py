@@ -53,7 +53,6 @@ def read_request(request):
     try:
         return request.text.encode('utf8')
     except Exception:
-        print('Read failed: ' + request.url)
         return ''
 
 def get_request_url(request):
@@ -128,18 +127,14 @@ def get_soup(url):
     if request != None:
         text = read_request(request)
         return bs4.BeautifulSoup(text, 'html.parser')
-    else:
-        print('The request failed')
 
-
-def queue_links(soup, starting_url, is_okay, link_q, sub='main'):
+def queue_links(soup, starting_url, link_q, sub='main'):
     '''
     Given a bs4 object, pull out all the links that need to be crawled
 
     Inputs:
         soup (bs4): a bs4 objec tat all link tags (a) can be pulled from
         starting_url (str): the initial url that created the soup object
-        is_okay (function): a helper function for the website we're crawling
         link_q (Queue): the current queue of links to crawl
         sub (str): the subcrawl
 
@@ -155,7 +150,7 @@ def queue_links(soup, starting_url, is_okay, link_q, sub='main'):
         clean_link = convert_if_relative_url(starting_url, no_frag)
 
         if is_absolute_url(clean_link):
-            if is_okay(clean_link, sub):
+            if okay_url_fbref(clean_link, sub):
                 if clean_link != starting_url:
                     if clean_link not in link_q.queue:
                         link_q.put(clean_link)
@@ -211,6 +206,8 @@ def okay_url_fbref(url, sub='main'):
     ld = len(limiting_domain)
     trunc_loc = loc[-(ld+1):]
 
+    adv_years = ['2018-2019', '2017-2018']
+
     if url == None:
         return False
 
@@ -237,15 +234,37 @@ def okay_url_fbref(url, sub='main'):
             return False
 
     if sub == 'keep_adv':
-        if not '/keepers' in parsed_url.path:
+        if not '/keepersadv' in parsed_url.path:
             return False
 
-        adv_years = ['2018-2019', '2017-2018']
-        good_year = True
+        good_year = False
 
         for year in adv_years:
-            if not year in parsed_url.path:
-                good_year = False
+            if year in parsed_url.path:
+                good_year = True
+                break
+
+        if good_year == False:
+            return False
+
+    if sub == 'keep_basic':
+        if not '/keepers/' in parsed_url.path:
+            return False
+
+    if sub == 'shooting':
+        if not '/shooting/' in parsed_url.path:
+            return False
+
+    if sub == 'passing':
+        if not '/passing/' in parsed_url.path:
+            return False
+
+        good_year = False
+
+        for year in adv_years:
+            if year in parsed_url.path:
+                good_year = True
+                break
 
         if good_year == False:
             return False
@@ -329,7 +348,6 @@ def get_tables_fbref(soup, db='players.db'):
         pos_2 = player_data.loc[player_data['Pos_1']==pos]
         all_pos = pd.concat([pos_1, pos_2])
         title = year + '-' + pos
-        print(all_pos)
         to_sql(all_pos, title, db)
 
     return player_data
@@ -360,6 +378,7 @@ def get_keeper_adv_tables(soup, db='players.db'):
     for col in col_tags:
         columns.append(col.get_text())
     columns = columns[1:]
+    print(columns)
 
     # get year that data is from on FBref
     year = soup.find('li', class_='full').get_text()[:9]
@@ -382,19 +401,205 @@ def get_keeper_adv_tables(soup, db='players.db'):
         td = tr.find_all('td')
         row = [tr.text for tr in td]
         data.append(row)
-    player_data = pd.DataFrame(data, columns = columns)
-    player_data = player_data.dropna()
+    keeper_data = pd.DataFrame(data, columns = columns)
+    keeper_data = keeper_data.dropna()
 
     # drop matches column beacuse it is just a link to matches played
-    if 'Matches' in player_data.columns:
-        player_data = player_data.drop(columns = 'Matches')
+    if 'Matches' in keeper_data.columns:
+        keeper_data = keeper_data.drop(columns = 'Matches')
 
     # clean nation column
-    keeper_data['Nation'] = player_data['Nation'].str.strip().str[-3:]
+    keeper_data['Nation'] = keeper_data['Nation'].str.strip().str[-3:]
+
     print(keeper_data)
 
+    name = year+'-GK-ADV'
+
     # write the main year table to the database
-    to_sql(player_data, year, db)
+    to_sql(keeper_data, name, db)
+
+def get_keeper_basic_tables(soup, db='players.db'):
+    '''
+    Takes a https://fbref.com/en/comps/9/####/keepers/ page and updates
+    the players.db sqlite3 database using the tables from the page.
+
+    Inputs:
+        soup (bs4): BeautifulSoup for a fbref.com yearly stats page
+        db (database): sqlite3 database
+
+    Returns:
+        None
+    '''
+    tables = soup.find_all('div', class_ = "table_outer_container")
+
+     # get players data in commented out table
+    players = soup.find_all(text = lambda text: isinstance(text, Comment))
+
+    # commented fbref table is the 11th in the list of comments
+    plays = bs4.BeautifulSoup(players[11], 'html.parser').find('tbody')
+    table_rows = plays.find_all('tr')
+
+    col_tags = bs4.BeautifulSoup(players[11], 'html.parser').find_all('th', scope = 'col')
+    columns = []
+    for col in col_tags:
+        columns.append(col.get_text())
+    columns = columns[1:]
+    print(columns)
+
+    # get year that data is from on FBref
+    year = soup.find('li', class_='full').get_text()[:9]
+
+    data = []
+    for tr in table_rows:
+        td = tr.find_all('td')
+        row = [tr.text for tr in td]
+        data.append(row)
+    keeper_data = pd.DataFrame(data, columns = columns)
+    keeper_data = keeper_data.dropna()
+
+    # drop matches column beacuse it is just a link to matches played
+    if 'Matches' in keeper_data.columns:
+        keeper_data = keeper_data.drop(columns = 'Matches')
+
+    # clean nation column
+    keeper_data['Nation'] = keeper_data['Nation'].str.strip().str[-3:]
+
+    print(keeper_data)
+
+    name = year+'-GK'
+
+    # write the main year table to the database
+    to_sql(keeper_data, name, db)
+
+def get_shooting_tables(soup, db='players.db'):
+    '''
+    Takes a https://fbref.com/en/comps/9/####/shooting/ page and updates
+    the players.db sqlite3 database using the tables from the page.
+
+    Inputs:
+        soup (bs4): BeautifulSoup for a fbref.com yearly stats page
+        db (database): sqlite3 database
+
+    Returns:
+        None
+    '''
+    tables = soup.find_all('div', class_ = "table_outer_container")
+
+     # get players data in commented out table
+    players = soup.find_all(text = lambda text: isinstance(text, Comment))
+
+    # commented fbref table is the 11th in the list of comments
+    plays = bs4.BeautifulSoup(players[11], 'html.parser').find('tbody')
+    table_rows = plays.find_all('tr')
+
+    col_tags = bs4.BeautifulSoup(players[11], 'html.parser').find_all('th', scope = 'col')
+    columns = []
+    for col in col_tags:
+        columns.append(col.get_text())
+    columns = columns[1:]
+    print(columns)
+
+    # get year that data is from on FBref
+    year = soup.find('li', class_='full').get_text()[:9]
+
+    data = []
+    for tr in table_rows:
+        td = tr.find_all('td')
+        row = [tr.text for tr in td]
+        data.append(row)
+    shooting_data = pd.DataFrame(data, columns = columns)
+    shooting_data = shooting_data.dropna()
+
+    # drop matches column beacuse it is just a link to matches played
+    if 'Matches' in shooting_data.columns:
+        shooting_data = shooting_data.drop(columns = 'Matches')
+
+    # clean and parse position column
+    shooting_data = shooting_data.rename(columns={'Pos': 'Pos_1'})
+    shooting_data.insert(3, 'Pos_2', None)
+    shooting_data[['Pos_1', 'Pos_2']] = shooting_data.Pos_1.str.split(',', expand=True)
+
+    # clean nation column
+    shooting_data['Nation'] = shooting_data['Nation'].str.strip().str[-3:]
+
+    print(shooting_data)
+
+    name = year+'-SHOOT'
+
+    # write the main year table to the database
+    to_sql(shooting_data, name, db)
+
+def get_passing_tables(soup, db='players.db'):
+    '''
+    Takes a https://fbref.com/en/comps/9/##/####/passing/ page and updates
+    the players.db sqlite3 database using the tables from the page.
+
+    Inputs:
+        soup (bs4): BeautifulSoup for a fbref.com yearly stats page
+        db (database): sqlite3 database
+
+    Returns:
+        None
+    '''
+    tables = soup.find_all('div', class_ = "table_outer_container")
+
+     # get players data in commented out table
+    players = soup.find_all(text = lambda text: isinstance(text, Comment))
+
+    # commented fbref table is the 11th in the list of comments
+    plays = bs4.BeautifulSoup(players[11], 'html.parser').find('tbody')
+    table_rows = plays.find_all('tr')
+
+    col_tags = bs4.BeautifulSoup(players[11], 'html.parser').find_all('th', scope = 'col')
+    columns = []
+    for col in col_tags:
+        columns.append(col.get_text())
+    columns = columns[1:]
+    print(columns)
+
+    # get year that data is from on FBref
+    year = soup.find('li', class_='full').get_text()[:9]
+
+    # rename columns
+    columns[11] = 'Total_Cmp'
+    columns[12] = 'Total_Att'
+    columns[13] = 'Total_Cmp%'
+    columns[14] = 'Short_Cmp'
+    columns[15] = 'Short_Att'
+    columns[16] = 'Short_Cmp%'
+    columns[17] = 'Med_Cmp'
+    columns[18] = 'Med_Att'
+    columns[19] = 'Med_Cmp%'
+    columns[20] = 'Long_Cmp'
+    columns[21] = 'Long_Att'
+    columns[22] = 'Long_Cmp%'
+
+    data = []
+    for tr in table_rows:
+        td = tr.find_all('td')
+        row = [tr.text for tr in td]
+        data.append(row)
+    passing_data = pd.DataFrame(data, columns = columns)
+    passing_data = passing_data.dropna()
+
+    # drop matches column beacuse it is just a link to matches played
+    if 'Matches' in passing_data.columns:
+        passing_data = passing_data.drop(columns = 'Matches')
+
+    # clean and parse position column
+    passing_data = passing_data.rename(columns={'Pos': 'Pos_1'})
+    passing_data.insert(3, 'Pos_2', None)
+    passing_data[['Pos_1', 'Pos_2']] = passing_data.Pos_1.str.split(',', expand=True)
+
+    # clean nation column
+    passing_data['Nation'] = passing_data['Nation'].str.strip().str[-3:]
+
+    print(passing_data)
+
+    name = year+'-PASS'
+
+    # write the main year table to the database
+    to_sql(passing_data, name, db)
 
 def crawl(link_q, sub, get_tables, pages_crawled):
     '''
@@ -419,10 +624,47 @@ def crawl(link_q, sub, get_tables, pages_crawled):
         if year_page not in pages_crawled:
             pages_crawled.append(year_page)
             year_soup = get_soup(year_page)
-            link_q = queue_links(year_soup, year_page, okay_url_fbref, link_q, sub)
+            link_q = queue_links(year_soup, year_page, link_q, sub)
             get_tables(year_soup)
 
-def go_fbref():
+def go_helper(sub):
+    '''
+    Crawls a subset of https://fbref.com and updates the players.db
+    '''
+    link_q = queue.Queue()
+
+    if sub == 'main':
+        starting_url = 'https://fbref.com/en/comps/9/stats/Premier-League-Stats'
+    elif sub == 'keep_adv':
+        starting_url = 'https://fbref.com/en/comps/9/keepersadv/Premier-League-Stats'
+    elif sub == 'keep_basic':
+        starting_url = 'https://fbref.com/en/comps/9/keepers/Premier-League-Stats'
+    elif sub == 'shooting':
+        starting_url = 'https://fbref.com/en/comps/9/shooting/Premier-League-Stats'
+    elif sub == 'passing':
+        starting_url = 'https://fbref.com/en/comps/9/passing/Premier-League-Stats'
+
+    pages_crawled = [starting_url]
+    soup = get_soup(starting_url)
+    link_q = queue_links(soup, starting_url, link_q, sub)
+
+    if sub == 'main':
+        get_tables_fbref(soup)
+        crawl(link_q, 'main', get_tables_fbref, pages_crawled)
+    elif sub == 'keep_adv':
+        get_keeper_adv_tables(soup)
+        crawl(link_q, 'keep_adv', get_keeper_adv_tables, pages_crawled)
+    elif sub == 'keep_basic':
+        get_keeper_basic_tables(soup)
+        crawl(link_q, 'keep_basic', get_keeper_basic_tables, pages_crawled)
+    elif sub == 'shooting':
+        get_shooting_tables(soup)
+        crawl(link_q, 'shooting', get_shooting_tables, pages_crawled)
+    elif sub == 'passing':
+        get_passing_tables(soup)
+        crawl(link_q, 'passing', get_passing_tables, pages_crawled)
+
+def go():
     '''
     Crawl https://fbref.com and update the players.db
 
@@ -432,22 +674,8 @@ def go_fbref():
     Outputs:
         None
     '''
-    # get main player data tables
-    starting_url = 'https://fbref.com/en/comps/9/stats/Premier-League-Stats'
-    link_q = queue.Queue()
-    soup = get_soup(starting_url)
-
-    pages_crawled = [starting_url]
-    link_q = queue_links(soup, starting_url, okay_url_fbref, link_q)
-
-    get_tables_fbref(soup)
-    crawl(link_q, 'main', get_tables_fbref, pages_crawled)
-
-    # get advanced keepers data tables
-    starting_url = 'https://fbref.com/en/comps/9/keepersadv/Premier-League-Stats'
-    soup = get_soup(starting_url)
-    link_q = queue_links(soup, starting_url, okay_url_fbref, 'keep_adv')
-    print(link_q.queue)
-
-    get_keeper_tables(soup)
-    crawl(link_q, 'keep_adv', get_tables_fbref, pages_crawled)
+    go_helper('main')
+    go_helper('keep_adv')
+    go_helper('keep_basic')
+    go_helper('shooting')
+    go_helper('passing')
