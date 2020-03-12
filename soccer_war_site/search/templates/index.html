@@ -2,12 +2,13 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title bgcolor = "#500a78">WAR for EPL</title>
+        <div class="header-img"></div>
+        <title>WAR for EPL</title>
         <link rel="stylesheet" type="text/css" href="{% static "/main.css" %}" />
     </head>
     <body>
         <div id="header">
-            <h1 style="text-align:center;", >Wins Above Replacement for the EPL</h1>
+            <h1 style="font-family:verdana">Wins Above Replacement for the English Premier League</h1>
         </div>
         <div class="frame">
             <form method="get">
@@ -36,7 +37,7 @@
         <div class="frame">
             {% if result != None %}
             <div class="results">
-                <table class="courses">
+                <table class="players">
                     <tr>
                         {% for col in columns %}
                         <th>{{ col }}</th>
@@ -51,7 +52,7 @@
                     {% endfor %}
                 </table>
             </div>
-            <p class="num_results">Results: {{ num_results }}</p>
+            <p class="num_results">Players: {{ num_results }}</p>
             {% endif %}
         </div>
     </body>

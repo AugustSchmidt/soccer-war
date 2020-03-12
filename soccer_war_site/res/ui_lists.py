@@ -23,12 +23,13 @@ def generate_lists():
     squad = []
     pos = []
     age = []
-    starts = []
+    nation = []
     for table in tables:
         # get lists of unique values from sql database
         squad.append(c.execute('''SELECT DISTINCT Squad FROM ''' + '"' + table + '"').fetchall())
         pos.append(c.execute('''SELECT DISTINCT Pos_1 FROM ''' + '"' + table + '"').fetchall())
         age.append(c.execute('''SELECT DISTINCT Age FROM ''' + '"' + table + '"').fetchall())
+        nation.append(c.execute('''SELECT DISTINCT Nation FROM ''' + '"' + table + '"').fetchall())
 
     connection.close()
 
@@ -59,7 +60,13 @@ def generate_lists():
                 if years_old not in ages:
                     ages.append(years_old)
 
-
+    nations = []
+    for row in nation:
+        i = len(row)
+        for index in range(i):
+            country = row[index][0]
+            if country not in nations and country != None and country != '':
+                nations.append(country)
 
     # write lists of unique values to file
     squad_df = pd.DataFrame(squads)
@@ -70,3 +77,6 @@ def generate_lists():
 
     ages_df = pd.DataFrame(ages)
     ages_df.to_csv('age_list.csv', index = False, header = False)
+
+    nations_df = pd.DataFrame(nations)
+    nations_df.to_csv('nation_list.csv', index = False, header = False)

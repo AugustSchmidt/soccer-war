@@ -7,19 +7,22 @@ html, body {
     font-family: Verdana;
 }
 
+.header-img {
+  width: 100%;
+  height: 80px;
+  background: url('https://bettingplanet.com/wp-content/uploads/2019/08/epl-banner.jpg');
+  background-size: contain;
+}
+
 div#header {
-    background: #500a78;
+    background: #531b7d;
+    text-align: center;
     margin: 25;
-    padding: 25;
-    border-style: solid;
-    border-width: 3px;
-    border-color: #00ff00;
-    block-size: 50px;
+    padding: 10px;
 }
 
 div#header h1 {
-    font-family: Georgia, serif;
-    font-size: 22px;
+    font-size: 24px;
     color: #f5f5f5;
     margin: 0;
     padding: 7px;
@@ -48,6 +51,7 @@ fieldset {
     padding: 3px;
     margin: 1px;
     border: 1px solid #ddd;
+    text-align: center;
 }
 
 fieldset legend {
@@ -97,24 +101,24 @@ table.form ul#id_days li {
     padding: 0px;
 }
 
-table.courses {
-    border: 1px solid #ddd;
-    padding: 0px;
-    margin: 0px;
+table.players {
+    border: 6px solid #eee4f2;
+    padding: 1px;
+    margin: 1px;
 }
 
-table.courses tr th {
+table.players tr th {
     text-align: left;
 }
 
-table.courses tr td,
-table.courses tr th {
-    padding: 3px;
-    font-size: 12px;
+table.players tr td,
+table.players tr th {
+    padding: 5px;
+    font-size: 14px;
 }
 
-table.courses tr:nth-child(even) {
-    background: #eee;
+table.players tr:nth-child(even) {
+    background: #eee4f2;
 }
 
 ul.errorlist {

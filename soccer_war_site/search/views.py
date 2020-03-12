@@ -54,7 +54,9 @@ def build_dropdown(options):
 
 SQUADS = build_dropdown(load_res_column('squad_list.csv'))
 POSITIONS = build_dropdown(load_res_column('pos_list.csv'))
+NATIONS = build_dropdown(load_res_column('nation_list.csv'))
 POSITIONS.insert(0, ('All', 'All'))
+NATIONS.insert(0, ('All', 'All'))
 year = 1992
 tables = []
 while year <= 2019:
@@ -91,8 +93,12 @@ class value_range(IntegerRange):
                 'Lower bound must not exceed upper bound.')
         return data_list
 
+# class positionForm(forms.Form):
+    
+
 class SearchForm(forms.Form):
-    options = ['None', 'Season', 'Age', 'Goals', 'Position', 'Squad']
+    options = ['None', 'Season', 'Age', 'Goals', 'Assists', 'Position', 
+                'Nationality', 'Squad']
     FIELDS = build_dropdown(options)
 
     query = forms.CharField(
@@ -110,14 +116,13 @@ class SearchForm(forms.Form):
         help_text='e.g. 5 and 15',
         widget=RANGE_WIDGET,
         required=False)
-    # time_and_building = BuildingWalkingTime(
-    #     label='Walking time:',
-    #     help_text='e.g. 10 and RY (at most a 10-min walk from Ryerson)',
-    #     required=False,
-    #     widget=forms.widgets.MultiWidget(
-    #         widgets=(forms.widgets.NumberInput,
-    #                  forms.widgets.Select(choices=BUILDINGS))))
+    ast = value_range(
+        label='Assists',
+        help_text='e.g. 5 and 15',
+        widget=RANGE_WIDGET,
+        required=False)
     position = forms.ChoiceField(label='Position', choices=POSITIONS, required=False)
+    nation = forms.ChoiceField(label='Nationality', choices=NATIONS, required=False)
     squads = forms.MultipleChoiceField(label='Teams',
                                      choices=SQUADS,
                                      widget=forms.CheckboxSelectMultiple,
@@ -149,9 +154,15 @@ def home(request):
             if gls:
                 args['gls_lower'] = gls[0]
                 args['gls_upper'] = gls[1]
+            ast = form.cleaned_data['ast']
+            if ast:
+                args['Ast'] = (ast[0], ast[1])
             positions = form.cleaned_data['position']
             if positions:
                 args['Pos'] = positions
+            nation = form.cleaned_data['nation']
+            if nation:
+                args['Nation'] = nation
             squads = form.cleaned_data['squads']
             if squads:
                 args['Squad'] = squads
@@ -201,6 +212,3 @@ def home(request):
     context['form'] = form
     return render(request, 'index.html', context= context)
 
-
-# def index(request):
-#   return render_to_response('index.html')

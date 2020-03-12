@@ -57,9 +57,10 @@ def build_query(args_from_ui):
         where_str = where_str[:len(where_str)-1]
         count = 1
         for season in tables:
+            print('SEASON:', season)
             select_str += ', ' + season + ' as Season '
+            from_str = ('FROM ' + season + ' ')
             if count < len(tables):
-                from_str = ('FROM ' + season + ' ')
                 query += (select_str + from_str + where_str + ' UNION ')
                 count += 1
             else:
@@ -67,15 +68,31 @@ def build_query(args_from_ui):
                     query += (select_str + from_str + where_str + ';')
                 else:
                     query += (select_str + from_str + where_str)
+                    query += order_by(args_from_ui) + ';'
             select_str = get_fields(args_from_ui)
-        query += order_by(args_from_ui) + ';'
         args = args * len(tables)
 
     cursor = create_connection()
 
-    # return tuple of empty lists if args is an empty dictionary (no terms passed)
-    if len(args_from_ui) == 0:
-        return ([], []) 
+    # return all palyers if no args explicitly selected
+    if (args_from_ui['Pos'] == 'All' and args_from_ui['order_by'] == None and
+        args_from_ui['season'] == 'All' and args_from_ui['Nation'] == 'All' and
+        'Squad' not in args_from_ui):
+        args = []
+        count = 1
+        select_str = get_fields(args_from_ui)
+        query = ''
+        for season in tables:
+            select_str += ', ' + season + ' as Season '
+            from_str = ('FROM ' + season + ' ')
+            if count < len(tables):
+                query += select_str + from_str + ' UNION '
+                count += 1
+            else:
+                query += select_str + from_str + 'ORDER BY season DESC' + ';'
+            select_str = get_fields(args_from_ui)
+        args = args * len(tables)
+        # return (['Please select values to '], []) 
 
     print('QUERY:', query)
     print('ARGS:', args)
@@ -159,7 +176,7 @@ def get_where_clause(args_from_ui):
     '''
     args = []
     first = True
-    where_str = ' WHERE'
+    where_str = 'WHERE'
     goals_flag = True
     for key, val in args_from_ui.items():
         if first:
@@ -177,17 +194,30 @@ def get_where_clause(args_from_ui):
             elif key == 'gls_upper' or key == 'gls_lower':
                 lb = args_from_ui['gls_lower']
                 ub = args_from_ui['gls_upper']
-                where_str += ' (Gls <= ? '
+                where_str += ' CAST(Gls AS INT) <= ? '
                 args.append(ub)
-                where_str += ' AND Gls >= ?) '
+                where_str += ' AND CAST(Gls AS INT) >= ? '
                 args.append(lb)
                 first = False
                 goals_flag = False
+            elif key == 'Ast':
+                lb = val[0]
+                ub = val[1]
+                print('check')
+                where_str += ' CAST(Ast AS INT) <= ? AND CAST(Ast AS INT) >= ? '
+                args.append(ub)
+                args.append(lb)
+                first = False
             elif key == 'Pos':
                 if val != 'All':
                     where_str += ' Pos_1 = ? '
                     args.append(val)
-                first = False
+                    first = False
+            elif key == 'Nation':
+                if val != 'All':
+                    where_str += ' Nation = ? '
+                    args.append(val)
+                    first = False
             elif key == 'Squad':
                 count = 1
                 where_str += ' ('
@@ -211,16 +241,25 @@ def get_where_clause(args_from_ui):
                 args.append(lb)
             elif key == 'gls_upper':
                 if goals_flag:
-                    print('else check')
                     ub = args_from_ui['gls_upper']
                     lb = args_from_ui['gls_lower']
-                    where_str += ' AND (Gls <= ? '
+                    where_str += ' AND CAST(Gls AS INT) <= ? '
                     args.append(ub)
-                    where_str += ' AND Gls >= ?) '
+                    where_str += ' AND CAST(Gls AS INT) >= ? '
                     args.append(lb)
+            elif key == 'Ast':
+                lb = val[0]
+                ub = val[1]
+                where_str += ' AND CAST(Ast AS INT) <= ? AND CAST(Ast AS INT) >= ? '
+                args.append(ub)
+                args.append(lb)
             elif key == 'Pos':
                 if val != 'All':
                     where_str += ' AND Pos_1 = ? '
+                    args.append(val)
+            elif key == 'Nation':
+                if val != 'All':
+                    where_str += ' AND Nation = ? '
                     args.append(val)
             elif key == 'Squad':
                 count = 1
@@ -249,8 +288,14 @@ def order_by(args_from_ui):
     if args_from_ui['order_by'] != 'None':
         if args_from_ui['order_by'] == 'Goals':
             order_by += ' ORDER BY Gls DESC'
+        elif args_from_ui['order_by'] == 'Assists':
+            order_by += ' ORDER BY Ast DESC'
         elif args_from_ui['order_by'] == 'Position':
             order_by += ' ORDER BY Pos'
+        elif args_from_ui['order_by'] == 'Nationality':
+            order_by += ' ORDER BY Nation'
+        elif args_from_ui['order_by'] == 'Season':
+            order_by += 'ORDER BY Season DESC'
         elif args_from_ui['order_by'] != 'Season':
             order_by += (' ORDER BY ' + args_from_ui['order_by'] + ' DESC')
 
