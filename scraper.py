@@ -331,7 +331,6 @@ def get_tables_fbref(soup, db='players.db'):
 
     # clean nation column
     player_data['Nation'] = player_data['Nation'].str.strip().str[-3:]
-
     print(player_data)
 
     # write the main year table to the database
@@ -343,7 +342,6 @@ def get_tables_fbref(soup, db='players.db'):
     for pos in positions:
         pos_1 = player_data.loc[(player_data['Pos_1']==pos) \
                                 & (player_data['Pos_2'].isnull())]
-        print('Pos_1 only: ', pos, pos_1)
         title = year + '-' + pos
         to_sql(pos_1, title, db)
 
@@ -353,7 +351,6 @@ def get_tables_fbref(soup, db='players.db'):
     mf_df = player_data[(player_data['Pos_1'] == 'MF') \
                         & (player_data['Pos_2'] == 'DF')]
     wb = pd.concat([df_mf, mf_df])
-    print('Wingback table:', wb)
     title = year + '-WB'
     to_sql(wb, title, db)
 
@@ -363,7 +360,6 @@ def get_tables_fbref(soup, db='players.db'):
     mf_fw = player_data[(player_data['Pos_1'] == 'MF') \
                         & (player_data['Pos_2'] == 'FW')]
     wb = pd.concat([fw_mf, mf_fw])
-    print('Winger table:', wb)
     title = year + '-WING'
     to_sql(wb, title, db)
 
@@ -682,8 +678,28 @@ def join_years(db='players.db'):
         seasons.append(season)
 
     # First, we join the tables for the non-goalkeeping positions
-    positions = ['DF', 'FW', 'MF']
-    table_suffixes = ['-PASS', '-SHOOT']
+    positions = ['-DF', '-FW', '-MF', '-WB', '-WING']
+    suffixes = ['-PASS', '-SHOOT']
+    for season in seasons:
+        for pos in positions:
+            main_table = season+pos
+            if season in seasons[-3:]:
+                pass_table = season+'-PASS'
+                shoot_table = season+'-SHOOT'
+                query = '''SELECT * FROM '{}' LEFT JOIN '{}' ON '{}'.Player='{}'.Player
+                           LEFT JOIN '{}' ON '{}'.Player='{}'.Player;'''
+                query = query.format(main_table, pass_table, main_table, pass_table,
+                        shoot_table, main_table, shoot_table)
+            else:
+                shoot_table = season+'-SHOOT'
+                query = '''SELECT * FROM '{}' LEFT JOIN '{}' ON '{}'.Player='{}'.Player;'''
+                query = query.format(main_table, shoot_table, main_table, shoot_table)
+            df = pd.read_sql_query(query, connection)
+            df = df.loc[:,~df.columns.duplicated()]
+            title = season+pos+'-JOIN'
+            print(title)
+            print(df.columns)
+            to_sql(df, title, db)
 
     c.close()
     connection.close()
