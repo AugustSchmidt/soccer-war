@@ -4,9 +4,6 @@ import sys
 import string
 import os
 
-import csv
-import json
-
 import bs4
 from bs4 import Comment
 import requests
@@ -14,6 +11,7 @@ import urllib.parse
 
 import pandas as pd
 import sqlite3
+import sqlalchemy
 
 ###############################################################################
                     # GENERAL PURPOSE WEB SCRAPING FUNCTIONS #
@@ -159,7 +157,7 @@ def queue_links(soup, starting_url, link_q, sub='main'):
 
 def to_sql(df, name, db):
     '''
-    Converts a pandas DataFrame to an SQLite table and adds it to a database
+    Converts a pandas DataFrame to an SQLite table and adds it to a database.
 
     Inputs:
         df (DataFrame): a pandas DataFrame created by a get_tables function
@@ -167,7 +165,7 @@ def to_sql(df, name, db):
         db (database): a SQL database
 
     Returns:
-        Updated database with new table included
+        None
     '''
 
     connection = sqlite3.connect(db)
@@ -339,16 +337,35 @@ def get_tables_fbref(soup, db='players.db'):
     # write the main year table to the database
     to_sql(player_data, year, db)
 
-    # we now generate 3 additional tables for each year that contain players
+    #  generate 3 additional tables for each year that contain players
     # from each of the major positions
-
     positions = ['DF', 'FW', 'MF']
     for pos in positions:
-        pos_1 = player_data.loc[player_data['Pos_1']==pos]
-        pos_2 = player_data.loc[player_data['Pos_1']==pos]
-        all_pos = pd.concat([pos_1, pos_2])
+        pos_1 = player_data.loc[(player_data['Pos_1']==pos) \
+                                & (player_data['Pos_2'].isnull())]
+        print('Pos_1 only: ', pos, pos_1)
         title = year + '-' + pos
-        to_sql(all_pos, title, db)
+        to_sql(pos_1, title, db)
+
+    # generate the the wingback table and write to the database
+    df_mf = player_data[(player_data['Pos_1'] == 'DF') \
+                        & (player_data['Pos_2'] == 'MF')]
+    mf_df = player_data[(player_data['Pos_1'] == 'MF') \
+                        & (player_data['Pos_2'] == 'DF')]
+    wb = pd.concat([df_mf, mf_df])
+    print('Wingback table:', wb)
+    title = year + '-WB'
+    to_sql(wb, title, db)
+
+    # generate the the winger table and write to the database
+    fw_mf = player_data[(player_data['Pos_1'] == 'FW') \
+                        & (player_data['Pos_2'] == 'MF')]
+    mf_fw = player_data[(player_data['Pos_1'] == 'MF') \
+                        & (player_data['Pos_2'] == 'FW')]
+    wb = pd.concat([fw_mf, mf_fw])
+    print('Winger table:', wb)
+    title = year + '-WING'
+    to_sql(wb, title, db)
 
     return player_data
 
@@ -626,6 +643,51 @@ def crawl(link_q, sub, get_tables, pages_crawled):
             year_soup = get_soup(year_page)
             link_q = queue_links(year_soup, year_page, link_q, sub)
             get_tables(year_soup)
+
+def join_years(db='players.db'):
+    '''
+    Joins all of the year tables scraped from fbref.com and joins them on
+    players by position. Adds the 4 new tables per year to the database.
+
+    Inputs:
+        db (Database): the database of player tables that contains tables for:
+            1. Standard Stats
+                ** Available from all years **
+                ** Expected stats from 2017-2018 onwards **
+                1.1. FW
+                1.2. MF
+                1.3. DF
+            2. Goalkeeping
+                ** Available from all years **
+                ** No Save% before 2016-2017 **
+            3. Advanced Goalkeeping
+                ** Available from 2017-2018 onwards **
+            4. Shooting
+                ** Available from all years **
+                ** No FK before 2017-2018 **
+                ** Basic only before 2016-2017 **
+            5. Passing
+                ** Available from 2017-2018 onwards **
+    Returns:
+        None
+    '''
+    connection = sqlite3.connect(db)
+    c = connection.cursor()
+
+    years = list(range(1992, 2020))
+    seasons = []
+    for year in years:
+        next_year = year+1
+        season = str(year)+'-'+str(next_year)
+        seasons.append(season)
+
+    # First, we join the tables for the non-goalkeeping positions
+    positions = ['DF', 'FW', 'MF']
+    table_suffixes = ['-PASS', '-SHOOT']
+
+    c.close()
+    connection.close()
+
 
 def go_helper(sub):
     '''
