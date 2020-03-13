@@ -679,7 +679,6 @@ def join_years(db='players.db'):
 
     # Join the tables for the non-goalkeeping positions
     positions = ['-DF', '-FW', '-MF', '-WB', '-WING']
-    suffixes = ['-PASS', '-SHOOT']
     for season in seasons:
         for pos in positions:
             main_table = season+pos
@@ -696,7 +695,26 @@ def join_years(db='players.db'):
                 query = query.format(main_table, shoot_table, main_table, shoot_table)
             df = pd.read_sql_query(query, connection)
             df = df.loc[:,~df.columns.duplicated()]
+            df = df.apply(pd.to_numeric, errors='ignore')
+
+            avg_index = df.index[-1]+1
+            df.loc[avg_index] = df.mean()
+            df.at[avg_index, 'index'] = df.at[avg_index-1, 'index']+1
+            df.at[avg_index, 'Player'] = 'Average'
+            df.at[avg_index, 'Pos_1'] = df.at[avg_index-1, 'Pos_1']
+            df.at[avg_index, 'Pos_2'] = df.at[avg_index-1, 'Pos_2']
+            df.at[avg_index, 'Squad'] = 'Average'
+
+            replace_index = df.index[-1]+1
+            df.loc[replace_index] = df.mean()*.8
+            df.at[replace_index, 'index'] = df.at[replace_index-1, 'index']+1
+            df.at[replace_index, 'Player'] = 'Replacement'
+            df.at[replace_index, 'Pos_1'] = df.at[replace_index-1, 'Pos_1']
+            df.at[replace_index, 'Pos_2'] = df.at[replace_index-1, 'Pos_2']
+            df.at[replace_index, 'Squad'] = 'Replacement'
+
             title = main_table+'-JOIN'
+            print(title, df.columns, df)
             to_sql(df, title, db)
 
     # Join the goalkeeping tables
@@ -713,7 +731,24 @@ def join_years(db='players.db'):
             query = '''SELECT * FROM '{}';'''.format(main_table)
         df = pd.read_sql_query(query, connection)
         df = df.loc[:,~df.columns.duplicated()]
+        df = df.apply(pd.to_numeric, errors='ignore')
+
+        avg_index = df.index[-1]+1
+        df.loc[avg_index] = df.mean()
+        df.at[avg_index, 'index'] = df.at[avg_index-1, 'index']+1
+        df.at[avg_index, 'Player'] = 'Average'
+        df.at[avg_index, 'Pos'] = df.at[avg_index-1, 'Pos']
+        df.at[avg_index, 'Squad'] = 'Average'
+
+        replace_index = df.index[-1]+1
+        df.loc[replace_index] = df.mean()*.8
+        df.at[replace_index, 'index'] = df.at[replace_index-1, 'index']+1
+        df.at[replace_index, 'Player'] = 'Replacement'
+        df.at[replace_index, 'Pos'] = df.at[replace_index-1, 'Pos']
+        df.at[replace_index, 'Squad'] = 'Replacement'
+
         title = main_table+'-JOIN'
+        print(title, df.columns, df)
         to_sql(df, title, db)
 
     c.close()
