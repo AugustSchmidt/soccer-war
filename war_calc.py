@@ -29,7 +29,7 @@ def find_regr():
     intercept = regr.intercept_[0]
     score = regr.score(X_train, y_train)
 
-    return coef, intercept, score
+    return (coef, intercept, score)
 
 def add_war(df, pos):
     '''
@@ -46,6 +46,7 @@ def add_war(df, pos):
     avg_index = df.index[-2]
     replace_index = df.index[-1]
     positions = ['-DF', '-FW', '-MF', '-WB', '-WING']
+    coef = find_regr()[0]
 
     if pos == '-DF':
         df['Raw_GD'] = ((df['Gls']) +
@@ -54,6 +55,7 @@ def add_war(df, pos):
                     (df['Ast'])*5 -
                     (df['CrdY']*0.2+df['CrdY']*0.8))
         df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-2.5
+        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
     elif pos == '-FW':
         df['Raw_GD'] = ((df['Gls']) +
                     (df['SoT'])*0.3 -
@@ -61,6 +63,7 @@ def add_war(df, pos):
                     (df['Ast'])*0.75 -
                     (df['CrdY']*0.2+df['CrdY']*0.8))
         df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-6
+        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
     elif pos == '-WING':
         df['Raw_GD'] = ((df['Gls']) +
                     (df['SoT'])*0.3 -
@@ -68,6 +71,7 @@ def add_war(df, pos):
                     (df['Ast'])*0.9 -
                     (df['CrdY']*0.2+df['CrdY']*0.1))
         df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-4
+        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
     elif pos == '-WB':
         df['Raw_GD'] = ((df['Gls']) +
                     (df['SoT'])*0.3 -
@@ -75,6 +79,7 @@ def add_war(df, pos):
                     (df['Ast'])*5 -
                     (df['CrdY']*0.2+df['CrdY']*0.8))
         df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-3
+        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
     elif pos == '-MF':
         df['Raw_GD'] = ((df['Gls']) +
                     (df['SoT'])*0.3 -
@@ -82,12 +87,10 @@ def add_war(df, pos):
                     (df['Ast'])*0.75 -
                     (df['CrdY']*0.2+df['CrdY']*0.8))
         df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-1
+        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
     elif pos=='-GK':
         df['Raw_GD'] = (df['Raw_Save%']-df.at[avg_index, 'Raw_Save%'])*20
         df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)+3
-
-    print('The replacements adjusted goal differential is: ',pos, df.at[replace_index, 'Adj_GD'])
-    print('The averages adjusted goal differential is: ', pos, df.at[avg_index, 'Adj_GD'])
-    print('The mean adjusted goal differential is: ', pos, df['Adj_GD'].mean())
+        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
 
     return df
