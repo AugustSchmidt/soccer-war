@@ -10,6 +10,20 @@
         <div id="header">
             <h1 style="font-family:verdana">Wins Above Replacement for the English Premier League</h1>
         </div>
+        
+        <div class="positions">
+            <form class="postion_form", method="get">
+                <label, style="font-size: 16px">Please start by selecting
+                a position:</label>
+                {% csrf_token %}
+                <table class="pos_form">
+                {{ pos_form }}
+                </table>
+                <input type="submit" value="Submit" />
+            </form>
+        </div>
+        
+
         <div class="frame">
             <form method="get">
                 {% csrf_token %}

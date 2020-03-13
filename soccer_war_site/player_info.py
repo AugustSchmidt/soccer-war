@@ -98,6 +98,7 @@ def build_query(args_from_ui):
     print('ARGS:', args)
     r = cursor.execute(query, args)
     players = r.fetchall()
+    print('PLAYERS:', players)
     headers = clean_header(get_header(r))
 
     return (headers, players)
