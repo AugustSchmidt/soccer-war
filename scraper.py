@@ -180,6 +180,49 @@ def to_sql(df, name, db):
                     # SPECIFIC CRAWLERS FOR SITES #
 ###############################################################################
 
+#################################wikipedia.com#################################
+
+def calculate_goals_per_win():
+    '''
+    Scrapes https://en.wikipedia.org/wiki/Premier_League_records_and_statistics
+    for the all-time goal and wins statistics for every team to determine
+    on average, how many more goals a team scores than their opponents per win
+
+    Inputs:
+        None
+    Returns:
+        gd_per_win (float): The average number of goals per win in the
+                               Premier League
+    '''
+    url = 'https://en.wikipedia.org/wiki/Premier_League_records_and_statistics#Goals_2'
+    soup = get_soup(url)
+    tables = soup.find_all('table', class_ = "wikitable sortable")
+    goal_table = tables[4]
+
+    columns = goal_table.find_all('th')
+    columns = [tag.text.strip('.\n') for tag in columns]
+    columns = col_tags[1:]
+
+    table_rows = goal_table.find_all('tr')
+    data = []
+    for tr in table_rows:
+        td = tr.find_all('td')
+        row = [tr.text for tr in td]
+        data.append(row)
+
+    goals = pd.DataFrame(data, columns = columns)
+    goals = goals.dropna()
+    labels_to_drop =  ['Pos', 'Pld', 'Pts', '1st', '2nd', '3rd', '4th',
+                       'Relegated', 'BestPos']
+    goals.drop(columns=labels_to_drop, inplace=True)
+    goals["GD"] = goals["GD"].str.replace(",","")
+    goals["GD"] = goals["GD"].str.replace("−","-")
+    goals = goals.apply(pd.to_numeric, errors='ignore')
+
+    goals['gd_per_win'] = goals['GD']/goals['Win']
+    −
+
+
 #################################fbref.com#####################################
 
 def okay_url_fbref(url, sub='main'):
