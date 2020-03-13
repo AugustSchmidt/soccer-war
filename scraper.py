@@ -677,7 +677,7 @@ def join_years(db='players.db'):
         season = str(year)+'-'+str(next_year)
         seasons.append(season)
 
-    # First, we join the tables for the non-goalkeeping positions
+    # Join the tables for the non-goalkeeping positions
     positions = ['-DF', '-FW', '-MF', '-WB', '-WING']
     suffixes = ['-PASS', '-SHOOT']
     for season in seasons:
@@ -696,10 +696,25 @@ def join_years(db='players.db'):
                 query = query.format(main_table, shoot_table, main_table, shoot_table)
             df = pd.read_sql_query(query, connection)
             df = df.loc[:,~df.columns.duplicated()]
-            title = season+pos+'-JOIN'
-            print(title)
-            print(df.columns)
+            title = main_table+'-JOIN'
             to_sql(df, title, db)
+
+    # Join the goalkeeping tables
+    for season in seasons:
+        main_table = season+'-GK'
+        if season in seasons[-3:]:
+            adv_table = season+'-GK-ADV'
+            pass_table = season+'-PASS'
+            query = '''SELECT * FROM '{}' LEFT JOIN '{}' ON '{}'.Player='{}'.Player
+                       LEFT JOIN '{}' ON '{}'.Player='{}'.Player;'''
+            query = query.format(main_table, adv_table, main_table, adv_table,
+                    pass_table, main_table, pass_table)
+        else:
+            query = '''SELECT * FROM '{}';'''.format(main_table)
+        df = pd.read_sql_query(query, connection)
+        df = df.loc[:,~df.columns.duplicated()]
+        title = main_table+'-JOIN'
+        to_sql(df, title, db)
 
     c.close()
     connection.close()
