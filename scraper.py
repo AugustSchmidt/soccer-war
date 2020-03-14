@@ -10,8 +10,15 @@ import requests
 import urllib.parse
 
 import pandas as pd
+import numpy as np
 import sqlite3
 import sqlalchemy
+
+import sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+
+import war_calc as war
 
 ###############################################################################
                     # GENERAL PURPOSE WEB SCRAPING FUNCTIONS #
@@ -182,7 +189,7 @@ def to_sql(df, name, db):
 
 #################################wikipedia.com#################################
 
-def calculate_goals_per_win():
+def get_wiki_table():
     '''
     Scrapes https://en.wikipedia.org/wiki/Premier_League_records_and_statistics
     for the all-time goal and wins statistics for every team to determine
@@ -201,7 +208,6 @@ def calculate_goals_per_win():
 
     columns = goal_table.find_all('th')
     columns = [tag.text.strip('.\n') for tag in columns]
-    columns = col_tags[1:]
 
     table_rows = goal_table.find_all('tr')
     data = []
@@ -215,13 +221,20 @@ def calculate_goals_per_win():
     labels_to_drop =  ['Pos', 'Pld', 'Pts', '1st', '2nd', '3rd', '4th',
                        'Relegated', 'BestPos']
     goals.drop(columns=labels_to_drop, inplace=True)
+    goals["GF"] = goals["GF"].str.replace(",","")
+    goals["GA"] = goals["GA"].str.replace(",","")
     goals["GD"] = goals["GD"].str.replace(",","")
     goals["GD"] = goals["GD"].str.replace("−","-")
     goals = goals.apply(pd.to_numeric, errors='ignore')
+    goals['Club']=goals['Club'].str.strip('[b]\n')
 
-    goals['gd_per_win'] = goals['GD']/goals['Win']
-    −
+    goals['Games'] = goals['Win']+goals['Draw']+goals['Loss']
+    goals['Wins_per_season'] = goals['Win'] / goals['Seasons']
+    goals['GF_per_season'] = goals['GF'] / goals['Seasons']
+    goals['GA_per_season'] = goals['GA'] / goals['Seasons']
+    goals['GD_per_season'] = goals['GD'] / goals['Seasons']
 
+    return goals
 
 #################################fbref.com#####################################
 
@@ -667,7 +680,7 @@ def crawl(link_q, sub, get_tables, pages_crawled):
         get_tables (function): a function that gets the tables for a soup object
         pages_crawled (list): a list of pages that have been crawled so far
 
-    Outputs:
+    Returns:
         None
     '''
     while not link_q.empty():
@@ -738,7 +751,9 @@ def join_years(db='players.db'):
                 query = query.format(main_table, shoot_table, main_table, shoot_table)
             df = pd.read_sql_query(query, connection)
             df = df.loc[:,~df.columns.duplicated()]
+            df["Min"] = df["Min"].str.replace(",","")
             df = df.apply(pd.to_numeric, errors='ignore')
+            df.fillna(0, inplace=True)
 
             avg_index = df.index[-1]+1
             df.loc[avg_index] = df.mean()
@@ -749,12 +764,14 @@ def join_years(db='players.db'):
             df.at[avg_index, 'Squad'] = 'Average'
 
             replace_index = df.index[-1]+1
-            df.loc[replace_index] = df.mean()*.8
+            df.loc[replace_index] = df.mean()*.75
             df.at[replace_index, 'index'] = df.at[replace_index-1, 'index']+1
             df.at[replace_index, 'Player'] = 'Replacement'
             df.at[replace_index, 'Pos_1'] = df.at[replace_index-1, 'Pos_1']
             df.at[replace_index, 'Pos_2'] = df.at[replace_index-1, 'Pos_2']
             df.at[replace_index, 'Squad'] = 'Replacement'
+
+            df = war.add_war(df, pos)
 
             title = main_table+'-JOIN'
             print(title, df.columns, df)
@@ -774,7 +791,12 @@ def join_years(db='players.db'):
             query = '''SELECT * FROM '{}';'''.format(main_table)
         df = pd.read_sql_query(query, connection)
         df = df.loc[:,~df.columns.duplicated()]
+        df["Min"] = df["Min"].str.replace(",","")
         df = df.apply(pd.to_numeric, errors='ignore')
+
+        df['Raw_Save%'] = (df['SoTA']-df['GA'])/df['SoTA']
+        df.fillna(0, inplace=True)
+
 
         avg_index = df.index[-1]+1
         df.loc[avg_index] = df.mean()
@@ -789,6 +811,8 @@ def join_years(db='players.db'):
         df.at[replace_index, 'Player'] = 'Replacement'
         df.at[replace_index, 'Pos'] = df.at[replace_index-1, 'Pos']
         df.at[replace_index, 'Squad'] = 'Replacement'
+
+        df = war.add_war(df, '-GK')
 
         title = main_table+'-JOIN'
         print(title, df.columns, df)
@@ -842,7 +866,7 @@ def go():
     Inputs:
         None
 
-    Outputs:
+    Returns:
         None
     '''
     go_helper('main')
