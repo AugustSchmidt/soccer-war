@@ -1,4 +1,6 @@
 from django.db import models
+from django import forms
+from django.contrib.auth.models import User
 
 class players(models.Model):
 	player = models.CharField(max_length = 100)

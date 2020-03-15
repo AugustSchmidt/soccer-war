@@ -69,6 +69,7 @@ def generate_lists():
                 nations.append(country)
 
     # write lists of unique values to file
+    squads.sort()
     squad_df = pd.DataFrame(squads)
     squad_df.to_csv('squad_list.csv', index = False, header = False)
 
