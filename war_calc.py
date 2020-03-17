@@ -3,6 +3,7 @@ import numpy as np
 import sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
+from sklearn import preprocessing
 
 def find_regr():
     '''
@@ -45,52 +46,83 @@ def add_war(df, pos):
     '''
     avg_index = df.index[-2]
     replace_index = df.index[-1]
-    positions = ['-DF', '-FW', '-MF', '-WB', '-WING']
     coef = find_regr()[0]
+    min_max_scaler = preprocessing.MinMaxScaler()
 
-    if pos == '-DF':
+    if pos == '-FW':
         df['Raw_GD'] = ((df['Gls']) +
-                    (df['SoT'])*0.3 -
-                    (df['PK']-df['PKatt']) +
-                    (df['Ast'])*5 -
-                    (df['CrdY']*0.2+df['CrdY']*0.8))
-        df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-2.5
-        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
-    elif pos == '-FW':
-        df['Raw_GD'] = ((df['Gls']) +
-                    (df['SoT'])*0.3 -
-                    (df['PK']-df['PKatt']) +
-                    (df['Ast'])*0.75 -
-                    (df['CrdY']*0.2+df['CrdY']*0.8))
-        df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-6
-        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
+                       (df['SoT'])*0.3 -
+                       ((df['PK']-df['PKatt'])*0.75) +
+                       (df['Ast']*0.75) -
+                       (df['CrdY']*0.2+df['CrdY']*0.8) +
+                       ((df['Min']/90)*0.1)-6).values.astype(float)
+        df['Raw_WAR'] = coef*(df['Raw_GD']-df.at[replace_index, 'Raw_GD'])
+        raw_war = np.array(df['Raw_WAR']).reshape(-1,1)
+
+        df['Normed_WAR'] = min_max_scaler.fit_transform(raw_war)
+        df['WAR'] = df['Normed_WAR']*6
+
     elif pos == '-WING':
         df['Raw_GD'] = ((df['Gls']) +
-                    (df['SoT'])*0.3 -
-                    (df['PK']-df['PKatt']) +
-                    (df['Ast'])*0.9 -
-                    (df['CrdY']*0.2+df['CrdY']*0.1))
-        df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-4
-        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
-    elif pos == '-WB':
-        df['Raw_GD'] = ((df['Gls']) +
-                    (df['SoT'])*0.3 -
-                    (df['PK']-df['PKatt']) +
-                    (df['Ast'])*5 -
-                    (df['CrdY']*0.2+df['CrdY']*0.8))
-        df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-3
-        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
+                       (df['SoT'])*0.3 -
+                       ((df['PK']-df['PKatt'])*0.75) +
+                       (df['Ast']*0.9) -
+                       (df['CrdY']*0.2+df['CrdY']*0.8) +
+                       ((df['Min']/90)*0.1)-4).values.astype(float)
+        df['Raw_WAR'] = coef*(df['Raw_GD']-df.at[replace_index, 'Raw_GD'])
+        raw_war = np.array(df['Raw_WAR']).reshape(-1,1)
+
+        df['Normed_WAR'] = min_max_scaler.fit_transform(raw_war)
+        df['WAR'] = df['Normed_WAR']*6
+
     elif pos == '-MF':
         df['Raw_GD'] = ((df['Gls']) +
-                    (df['SoT'])*0.3 -
-                    (df['PK']-df['PKatt']) +
-                    (df['Ast'])*0.75 -
-                    (df['CrdY']*0.2+df['CrdY']*0.8))
-        df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)-1
-        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
+                       (df['SoT'])*0.3 -
+                       (df['PK']-df['PKatt']) +
+                       (df['Ast'])*0.75 -
+                       (df['CrdY']*0.2+df['CrdY']*0.8) +
+                       ((df['Min']/90)*0.1)+1).values.astype(float)
+        df['Raw_WAR'] = coef*(df['Raw_GD']-df.at[replace_index, 'Raw_GD'])
+        raw_war = np.array(df['Raw_WAR']).reshape(-1,1)
+
+        df['Normed_WAR'] = min_max_scaler.fit_transform(raw_war)
+        df['WAR'] = df['Normed_WAR']*6
+
+    elif pos == '-DF':
+        df['Raw_GD'] = ((df['Gls']) +
+                       (df['SoT'])*0.3 -
+                       (df['PK']-df['PKatt']) +
+                       (df['Ast']*3) -
+                       (df['CrdY']*0.2+df['CrdY']*0.8) +
+                       ((df['Min']/90)*0.1)+1).values.astype(float)
+
+        df['Raw_WAR'] = coef*(df['Raw_GD']-df.at[replace_index, 'Raw_GD'])
+        raw_war = np.array(df['Raw_WAR']).reshape(-1,1)
+
+        df['Normed_WAR'] = min_max_scaler.fit_transform(raw_war)
+        df['WAR'] = df['Normed_WAR']*6
+
+    elif pos == '-WB':
+        df['Raw_GD'] = ((df['Gls']) +
+                       (df['SoT'])*0.3 -
+                       ((df['PK']-df['PKatt'])*0.75) +
+                       (df['Ast']*0.75) -
+                       (df['CrdY']*0.2+df['CrdY']*0.8) +
+                       ((df['Min']/90)*0.1)+1).values.astype(float)
+        df['Raw_WAR'] = coef*(df['Raw_GD']-df.at[replace_index, 'Raw_GD'])
+        raw_war = np.array(df['Raw_WAR']).reshape(-1,1)
+
+        df['Normed_WAR'] = min_max_scaler.fit_transform(raw_war)
+        df['WAR'] = df['Normed_WAR']*6
+
     elif pos=='-GK':
-        df['Raw_GD'] = (df['Raw_Save%']-df.at[avg_index, 'Raw_Save%'])*20
-        df['Adj_GD'] = df['Raw_GD']+((df['Min']/90)*0.1)+3
-        df['WAR'] = coef*(df['Adj_GD']-df.at[replace_index, 'Adj_GD'])
+        df['Raw_GD'] = (((df['Raw_Save%']-df.at[replace_index, 'Raw_Save%'])*10)+
+                       ((df['CS']-df.at[replace_index, 'CS'])*0.9)+
+                       ((df['Min']/90)*0.1)-2)
+        df['Raw_WAR'] = coef*(df['Raw_GD']-df.at[replace_index, 'Raw_GD'])
+        raw_war = np.array(df['Raw_WAR']).reshape(-1,1)
+
+        df['Normed_WAR'] = min_max_scaler.fit_transform(raw_war)
+        df['WAR'] = df['Normed_WAR']*6
 
     return df

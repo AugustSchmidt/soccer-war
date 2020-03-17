@@ -179,7 +179,7 @@ def to_sql(df, name, db):
     cursor = connection.cursor()
 
     df.to_sql(name, connection, if_exists = "replace")
-    print('Wrote ', name, 'to the database')
+    print('Wrote ', name, 'to', str(db))
     cursor.close()
     connection.close()
 
@@ -387,7 +387,6 @@ def get_tables_fbref(soup, db='players.db'):
 
     # clean nation column
     player_data['Nation'] = player_data['Nation'].str.strip().str[-3:]
-    print(player_data)
 
     # write the main year table to the database
     to_sql(player_data, year, db)
@@ -447,7 +446,6 @@ def get_keeper_adv_tables(soup, db='players.db'):
     for col in col_tags:
         columns.append(col.get_text())
     columns = columns[1:]
-    print(columns)
 
     # get year that data is from on FBref
     year = soup.find('li', class_='full').get_text()[:9]
@@ -479,9 +477,6 @@ def get_keeper_adv_tables(soup, db='players.db'):
 
     # clean nation column
     keeper_data['Nation'] = keeper_data['Nation'].str.strip().str[-3:]
-
-    print(keeper_data)
-
     name = year+'-GK-ADV'
 
     # write the main year table to the database
@@ -513,7 +508,6 @@ def get_keeper_basic_tables(soup, db='players.db'):
     for col in col_tags:
         columns.append(col.get_text())
     columns = columns[1:]
-    print(columns)
 
     # get year that data is from on FBref
     year = soup.find('li', class_='full').get_text()[:9]
@@ -532,8 +526,6 @@ def get_keeper_basic_tables(soup, db='players.db'):
 
     # clean nation column
     keeper_data['Nation'] = keeper_data['Nation'].str.strip().str[-3:]
-
-    print(keeper_data)
 
     name = year+'-GK'
 
@@ -566,7 +558,6 @@ def get_shooting_tables(soup, db='players.db'):
     for col in col_tags:
         columns.append(col.get_text())
     columns = columns[1:]
-    print(columns)
 
     # get year that data is from on FBref
     year = soup.find('li', class_='full').get_text()[:9]
@@ -590,8 +581,6 @@ def get_shooting_tables(soup, db='players.db'):
 
     # clean nation column
     shooting_data['Nation'] = shooting_data['Nation'].str.strip().str[-3:]
-
-    print(shooting_data)
 
     name = year+'-SHOOT'
 
@@ -624,7 +613,6 @@ def get_passing_tables(soup, db='players.db'):
     for col in col_tags:
         columns.append(col.get_text())
     columns = columns[1:]
-    print(columns)
 
     # get year that data is from on FBref
     year = soup.find('li', class_='full').get_text()[:9]
@@ -662,8 +650,6 @@ def get_passing_tables(soup, db='players.db'):
 
     # clean nation column
     passing_data['Nation'] = passing_data['Nation'].str.strip().str[-3:]
-
-    print(passing_data)
 
     name = year+'-PASS'
 
@@ -771,10 +757,9 @@ def join_years(db='players.db'):
             df.at[replace_index, 'Pos_2'] = df.at[replace_index-1, 'Pos_2']
             df.at[replace_index, 'Squad'] = 'Replacement'
 
+            title = main_table+'-JOIN'
             df = war.add_war(df, pos)
 
-            title = main_table+'-JOIN'
-            print(title, df.columns, df)
             to_sql(df, title, db)
 
     # Join the goalkeeping tables
@@ -806,7 +791,7 @@ def join_years(db='players.db'):
         df.at[avg_index, 'Squad'] = 'Average'
 
         replace_index = df.index[-1]+1
-        df.loc[replace_index] = df.mean()*.8
+        df.loc[replace_index] = df.mean()*.75
         df.at[replace_index, 'index'] = df.at[replace_index-1, 'index']+1
         df.at[replace_index, 'Player'] = 'Replacement'
         df.at[replace_index, 'Pos'] = df.at[replace_index-1, 'Pos']
@@ -815,12 +800,10 @@ def join_years(db='players.db'):
         df = war.add_war(df, '-GK')
 
         title = main_table+'-JOIN'
-        print(title, df.columns, df)
         to_sql(df, title, db)
 
     c.close()
     connection.close()
-
 
 def go_helper(sub):
     '''
@@ -874,3 +857,7 @@ def go():
     go_helper('keep_basic')
     go_helper('shooting')
     go_helper('passing')
+    join_years()
+
+if __name__== "__main__":
+  go()
